@@ -1,12 +1,8 @@
 import Axios from 'axios';
-import React, { useContext, useEffect, useReducer } from 'react';
+import React, { useContext, useEffect, useMemo, useReducer } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import Card from 'react-bootstrap/Card';
-import Button from 'react-bootstrap/Button';
-import ListGroup from 'react-bootstrap/ListGroup';
+import { Row, Col, Card, Button, ListGroup, Alert } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { getError } from '../utils';
 import { Store } from '../Store';
@@ -28,22 +24,46 @@ const reducer = (state, action) => {
 
 export default function PlaceOrderScreen() {
   const navigate = useNavigate();
-
-  const [{ loading }, dispatch] = useReducer(reducer, {
-    loading: false,
-  });
+  const [{ loading }, dispatch] = useReducer(reducer, { loading: false });
 
   const { state, dispatch: ctxDispatch } = useContext(Store);
   const { cart, userInfo } = state;
 
-  const round2 = (num) => Math.round(num * 100 + Number.EPSILON) / 100; // 123.2345 => 123.23
-  cart.itemsPrice = round2(
-    cart.cartItems.reduce((a, c) => a + c.quantity * c.price, 0)
-  );
-  cart.shippingPrice = cart.itemsPrice > 100 ? round2(0) : round2(10);
-  cart.taxPrice = round2(0.15 * cart.itemsPrice);
-  cart.totalPrice = cart.itemsPrice + cart.shippingPrice + cart.taxPrice;
+  // ---------------- PRICE CALCULATION ----------------
+  const round2 = (num) =>
+    Math.round((num + Number.EPSILON) * 100) / 100;
 
+  const pricing = useMemo(() => {
+    const itemsPrice = round2(
+      cart.cartItems.reduce(
+        (a, c) => a + c.quantity * c.price,
+        0
+      )
+    );
+
+    const shippingPrice =
+      itemsPrice > 100 ? round2(0) : round2(10);
+
+    const taxPrice = round2(0.15 * itemsPrice);
+
+    const totalPrice =
+      itemsPrice + shippingPrice + taxPrice;
+
+    return {
+      itemsPrice,
+      shippingPrice,
+      taxPrice,
+      totalPrice,
+    };
+  }, [cart.cartItems]);
+
+  // ---------------- VALIDATION ----------------
+  useEffect(() => {
+    if (!cart.paymentMethod) navigate('/payment');
+    if (cart.cartItems.length === 0) navigate('/cart');
+  }, [cart, navigate]);
+
+  // ---------------- PLACE ORDER ----------------
   const placeOrderHandler = async () => {
     try {
       dispatch({ type: 'CREATE_REQUEST' });
@@ -54,20 +74,21 @@ export default function PlaceOrderScreen() {
           orderItems: cart.cartItems,
           shippingAddress: cart.shippingAddress,
           paymentMethod: cart.paymentMethod,
-          itemsPrice: cart.itemsPrice,
-          shippingPrice: cart.shippingPrice,
-          taxPrice: cart.taxPrice,
-          totalPrice: cart.totalPrice,
+          ...pricing,
         },
         {
           headers: {
-            authorization: `Bearer ${userInfo.token}`,
+            Authorization: `Bearer ${userInfo.token}`,
           },
         }
       );
-      ctxDispatch({ type: 'CART_CLEAR' });
+
       dispatch({ type: 'CREATE_SUCCESS' });
+      ctxDispatch({ type: 'CART_CLEAR' });
       localStorage.removeItem('cartItems');
+
+      toast.success('Order Placed Successfully 🚀');
+
       navigate(`/order/${data.order._id}`);
     } catch (err) {
       dispatch({ type: 'CREATE_FAIL' });
@@ -75,115 +96,133 @@ export default function PlaceOrderScreen() {
     }
   };
 
-  useEffect(() => {
-    if (!cart.paymentMethod) {
-      navigate('/payment');
-    }
-  }, [cart, navigate]);
-
+  // ---------------- UI ----------------
   return (
     <div>
-      <CheckoutSteps step1 step2 step3 step4></CheckoutSteps>
       <Helmet>
         <title>Preview Order</title>
       </Helmet>
-      <h1 className="my-3">Preview Order</h1>
+
+      <CheckoutSteps step1 step2 step3 step4 />
+
+      <h2 className="my-4 text-center">Review Your Order</h2>
+
       <Row>
+        {/* LEFT SIDE */}
         <Col md={8}>
-          <Card className="mb-3">
+          {/* Shipping */}
+          <Card className="mb-3 shadow-sm">
             <Card.Body>
-              <Card.Title>Shipping</Card.Title>
-              <Card.Text>
-                <strong>Name:</strong> {cart.shippingAddress.fullName} <br />
-                <strong>Address: </strong> {cart.shippingAddress.address},
-                {cart.shippingAddress.city}, {cart.shippingAddress.postalCode},
-                {cart.shippingAddress.country}
-              </Card.Text>
+              <Card.Title>Shipping Details</Card.Title>
+              <p>
+                <strong>Name:</strong>{' '}
+                {cart.shippingAddress?.fullName}
+                <br />
+                <strong>Address:</strong>{' '}
+                {cart.shippingAddress?.address},{' '}
+                {cart.shippingAddress?.city},{' '}
+                {cart.shippingAddress?.postalCode},{' '}
+                {cart.shippingAddress?.country}
+              </p>
               <Link to="/shipping">Edit</Link>
             </Card.Body>
           </Card>
 
-          <Card className="mb-3">
+          {/* Payment */}
+          <Card className="mb-3 shadow-sm">
             <Card.Body>
-              <Card.Title>Payment</Card.Title>
-              <Card.Text>
-                <strong>Method:</strong> {cart.paymentMethod}
-              </Card.Text>
+              <Card.Title>Payment Method</Card.Title>
+              <p>
+                <strong>{cart.paymentMethod}</strong>
+              </p>
               <Link to="/payment">Edit</Link>
             </Card.Body>
           </Card>
 
-          <Card className="mb-3">
+          {/* Items */}
+          <Card className="mb-3 shadow-sm">
             <Card.Body>
-              <Card.Title>Items</Card.Title>
-              <ListGroup variant="flush">
-                {cart.cartItems.map((item) => (
-                  <ListGroup.Item key={item._id}>
-                    <Row className="align-items-center">
-                      <Col md={6}>
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="img-fluid rounded img-thumbnail"
-                        ></img>{' '}
-                        <Link to={`/product/${item.slug}`}>{item.name}</Link>
-                      </Col>
-                      <Col md={3}>
-                        <span>{item.quantity}</span>
-                      </Col>
-                      <Col md={3}>${item.price}</Col>
-                    </Row>
-                  </ListGroup.Item>
-                ))}
-              </ListGroup>
+              <Card.Title>Order Items</Card.Title>
+
+              {cart.cartItems.length === 0 ? (
+                <Alert variant="info">
+                  Your cart is empty
+                </Alert>
+              ) : (
+                <ListGroup variant="flush">
+                  {cart.cartItems.map((item) => (
+                    <ListGroup.Item key={item._id}>
+                      <Row className="align-items-center">
+                        <Col md={6}>
+                          <Link to={`/product/${item.slug}`}>
+                            {item.name}
+                          </Link>
+                        </Col>
+                        <Col md={3}>
+                          {item.quantity} x ${item.price}
+                        </Col>
+                        <Col md={3}>
+                          $
+                          {(
+                            item.quantity * item.price
+                          ).toFixed(2)}
+                        </Col>
+                      </Row>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+
               <Link to="/cart">Edit</Link>
             </Card.Body>
           </Card>
         </Col>
+
+        {/* RIGHT SIDE */}
         <Col md={4}>
-          <Card>
+          <Card className="shadow-sm">
             <Card.Body>
               <Card.Title>Order Summary</Card.Title>
+
               <ListGroup variant="flush">
                 <ListGroup.Item>
-                  <Row>
-                    <Col>Items</Col>
-                    <Col>${cart.itemsPrice.toFixed(2)}</Col>
-                  </Row>
+                  Items: ${pricing.itemsPrice.toFixed(2)}
                 </ListGroup.Item>
+
                 <ListGroup.Item>
-                  <Row>
-                    <Col>Shipping</Col>
-                    <Col>${cart.shippingPrice.toFixed(2)}</Col>
-                  </Row>
+                  Shipping: $
+                  {pricing.shippingPrice.toFixed(2)}
                 </ListGroup.Item>
+
                 <ListGroup.Item>
-                  <Row>
-                    <Col>Tax</Col>
-                    <Col>${cart.taxPrice.toFixed(2)}</Col>
-                  </Row>
+                  Tax: ${pricing.taxPrice.toFixed(2)}
                 </ListGroup.Item>
+
                 <ListGroup.Item>
-                  <Row>
-                    <Col>
-                      <strong> Order Total</strong>
-                    </Col>
-                    <Col>
-                      <strong>${cart.totalPrice.toFixed(2)}</strong>
-                    </Col>
-                  </Row>
+                  <strong>
+                    Total: $
+                    {pricing.totalPrice.toFixed(2)}
+                  </strong>
                 </ListGroup.Item>
+
                 <ListGroup.Item>
                   <div className="d-grid">
                     <Button
                       type="button"
+                      size="lg"
                       onClick={placeOrderHandler}
-                      disabled={cart.cartItems.length === 0}
+                      disabled={
+                        cart.cartItems.length === 0 ||
+                        loading
+                      }
                     >
-                      Place Order
+                      {loading
+                        ? 'Placing Order...'
+                        : 'Place Order'}
                     </Button>
                   </div>
-                  {loading && <LoadingBox></LoadingBox>}
+
+                  {loading && <LoadingBox />}
                 </ListGroup.Item>
               </ListGroup>
             </Card.Body>

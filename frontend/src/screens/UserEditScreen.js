@@ -10,6 +10,8 @@ import LoadingBox from '../components/LoadingBox';
 import MessageBox from '../components/MessageBox';
 import { Store } from '../Store';
 import { getError } from '../utils';
+import { motion } from 'framer-motion';
+import Spinner from 'react-bootstrap/Spinner';
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -59,10 +61,7 @@ export default function UserEditScreen() {
         setIsAdmin(data.isAdmin);
         dispatch({ type: 'FETCH_SUCCESS' });
       } catch (err) {
-        dispatch({
-          type: 'FETCH_FAIL',
-          payload: getError(err),
-        });
+        dispatch({ type: 'FETCH_FAIL', payload: getError(err) });
       }
     };
     fetchData();
@@ -75,68 +74,86 @@ export default function UserEditScreen() {
       await axios.put(
         `/api/users/${userId}`,
         { _id: userId, name, email, isAdmin },
-        {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
-        }
+        { headers: { Authorization: `Bearer ${userInfo.token}` } }
       );
-      dispatch({
-        type: 'UPDATE_SUCCESS',
-      });
-      toast.success('User updated successfully');
+      dispatch({ type: 'UPDATE_SUCCESS' });
+      toast.success('User updated successfully ✅');
       navigate('/admin/users');
-    } catch (error) {
-      toast.error(getError(error));
+    } catch (err) {
       dispatch({ type: 'UPDATE_FAIL' });
+      toast.error(getError(err));
     }
   };
+
   return (
     <Container className="small-container">
       <Helmet>
-        <title>Edit User ${userId}</title>
+        <title>Edit User {userId}</title>
       </Helmet>
-      <h1>Edit User {userId}</h1>
 
-      {loading ? (
-        <LoadingBox></LoadingBox>
-      ) : error ? (
-        <MessageBox variant="danger">{error}</MessageBox>
-      ) : (
-        <Form onSubmit={submitHandler}>
-          <Form.Group className="mb-3" controlId="name">
-            <Form.Label>Name</Form.Label>
-            <Form.Control
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="p-4 shadow-sm border rounded"
+      >
+        <h1 className="mb-4 text-center">Edit User {userId}</h1>
+
+        {loading ? (
+          <LoadingBox />
+        ) : error ? (
+          <MessageBox variant="danger">{error}</MessageBox>
+        ) : (
+          <Form onSubmit={submitHandler}>
+            <Form.Group className="mb-3" controlId="name">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter user name"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="email">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="Enter email address"
+              />
+            </Form.Group>
+
+            <Form.Check
+              className="mb-3"
+              type="checkbox"
+              id="isAdmin"
+              label="Admin"
+              checked={isAdmin}
+              onChange={(e) => setIsAdmin(e.target.checked)}
             />
-          </Form.Group>
-          <Form.Group className="mb-3" controlId="email">
-            <Form.Label>Email</Form.Label>
-            <Form.Control
-              value={email}
-              type="email"
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </Form.Group>
 
-          <Form.Check
-            className="mb-3"
-            type="checkbox"
-            id="isAdmin"
-            label="isAdmin"
-            checked={isAdmin}
-            onChange={(e) => setIsAdmin(e.target.checked)}
-          />
-
-          <div className="mb-3">
-            <Button disabled={loadingUpdate} type="submit">
-              Update
-            </Button>
-            {loadingUpdate && <LoadingBox></LoadingBox>}
-          </div>
-        </Form>
-      )}
+            <div className="d-grid">
+              <Button type="submit" variant="dark" disabled={loadingUpdate}>
+                {loadingUpdate ? (
+                  <>
+                    <Spinner
+                      animation="border"
+                      size="sm"
+                      className="me-2"
+                    />
+                    Updating...
+                  </>
+                ) : (
+                  'Update User'
+                )}
+              </Button>
+            </div>
+          </Form>
+        )}
+      </motion.div>
     </Container>
   );
 }

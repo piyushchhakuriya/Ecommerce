@@ -1,60 +1,65 @@
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import HomeScreen from './screens/HomeScreen';
-import ProductScreen from './screens/ProductScreen';
+import { useContext, useEffect, useState } from 'react';
+import axios from 'axios';
+import { Helmet } from 'react-helmet-async';
+
+// Bootstrap
 import Navbar from 'react-bootstrap/Navbar';
-import Badge from 'react-bootstrap/Badge';
 import Nav from 'react-bootstrap/Nav';
 import NavDropdown from 'react-bootstrap/NavDropdown';
 import Container from 'react-bootstrap/Container';
+import Badge from 'react-bootstrap/Badge';
+import Button from 'react-bootstrap/Button';
 import { LinkContainer } from 'react-router-bootstrap';
-import { useContext, useEffect, useState } from 'react';
+
+// Context & utils
 import { Store } from './Store';
+import { getError } from './utils';
+
+// Screens
+import HomeScreen from './screens/HomeScreen';
+import ProductScreen from './screens/ProductScreen';
 import CartScreen from './screens/CartScreen';
 import SigninScreen from './screens/SigninScreen';
-import ShippingAddressScreen from './screens/ShippingAddressScreen';
 import SignupScreen from './screens/SignupScreen';
+import ShippingAddressScreen from './screens/ShippingAddressScreen';
 import PaymentMethodScreen from './screens/PaymentMethodScreen';
 import PlaceOrderScreen from './screens/PlaceOrderScreen';
 import OrderScreen from './screens/OrderScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import Button from 'react-bootstrap/Button';
-import { getError } from './utils';
-import axios from 'axios';
-import SearchBox from './components/SearchBox';
 import SearchScreen from './screens/SearchScreen';
-import ProtectedRoute from './components/ProtectedRoute';
+import MapScreen from './screens/MapScreen';
+import ForgetPasswordScreen from './screens/ForgetPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
+
+// Admin Screens
 import DashboardScreen from './screens/DashboardScreen';
-import AdminRoute from './components/AdminRoute';
 import ProductListScreen from './screens/ProductListScreen';
 import ProductEditScreen from './screens/ProductEditScreen';
 import OrderListScreen from './screens/OrderListScreen';
 import UserListScreen from './screens/UserListScreen';
 import UserEditScreen from './screens/UserEditScreen';
-import MapScreen from './screens/MapScreen';
-import ForgetPasswordScreen from './screens/ForgetPasswordScreen';
-import ResetPasswordScreen from './screens/ResetPasswordScreen';
+
+// Components
+import SearchBox from './components/SearchBox';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 
 function App() {
   const { state, dispatch: ctxDispatch } = useContext(Store);
   const { fullBox, cart, userInfo } = state;
 
-  const signoutHandler = () => {
-    ctxDispatch({ type: 'USER_SIGNOUT' });
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('shippingAddress');
-    localStorage.removeItem('paymentMethod');
-    window.location.href = '/signin';
-  };
   const [sidebarIsOpen, setSidebarIsOpen] = useState(false);
   const [categories, setCategories] = useState([]);
 
+  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const { data } = await axios.get(`/api/products/categories`);
+        const { data } = await axios.get('/api/products/categories');
         setCategories(data);
       } catch (err) {
         toast.error(getError(err));
@@ -62,23 +67,30 @@ function App() {
     };
     fetchCategories();
   }, []);
+
+  // Sign out handler
+  const signoutHandler = () => {
+    ctxDispatch({ type: 'USER_SIGNOUT' });
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('shippingAddress');
+    localStorage.removeItem('paymentMethod');
+    window.location.href = '/signin';
+  };
+
   return (
     <BrowserRouter>
       <div
-        className={
-          sidebarIsOpen
-            ? fullBox
-              ? 'site-container active-cont d-flex flex-column full-box'
-              : 'site-container active-cont d-flex flex-column'
-            : fullBox
-            ? 'site-container d-flex flex-column full-box'
-            : 'site-container d-flex flex-column'
-        }
+        className={`site-container d-flex flex-column ${
+          fullBox ? 'full-box' : ''
+        } ${sidebarIsOpen ? 'sidebar-active' : ''}`}
       >
+        {/* Toast Notifications */}
         <ToastContainer position="bottom-center" limit={1} />
-        <header>
+
+        {/* Header */}
+        <header className="sticky-top shadow-sm">
           <Navbar bg="dark" variant="dark" expand="lg">
-            <Container>
+            <Container fluid>
               <Button
                 variant="dark"
                 onClick={() => setSidebarIsOpen(!sidebarIsOpen)}
@@ -87,22 +99,28 @@ function App() {
               </Button>
 
               <LinkContainer to="/">
-                <Navbar.Brand>amazona</Navbar.Brand>
+                <Navbar.Brand className="ms-2">Amazona</Navbar.Brand>
               </LinkContainer>
-              <Navbar.Toggle aria-controls="basic-navbar-nav" />
-              <Navbar.Collapse id="basic-navbar-nav">
+
+              <Navbar.Toggle aria-controls="navbar-collapse" />
+              <Navbar.Collapse id="navbar-collapse">
                 <SearchBox />
-                <Nav className="me-auto  w-100  justify-content-end">
-                  <Link to="/cart" className="nav-link">
+                <Nav className="ms-auto align-items-center">
+                  <Link to="/cart" className="nav-link position-relative">
                     Cart
                     {cart.cartItems.length > 0 && (
-                      <Badge pill bg="danger">
+                      <Badge
+                        pill
+                        bg="danger"
+                        className="position-absolute top-0 start-100 translate-middle"
+                      >
                         {cart.cartItems.reduce((a, c) => a + c.quantity, 0)}
                       </Badge>
                     )}
                   </Link>
+
                   {userInfo ? (
-                    <NavDropdown title={userInfo.name} id="basic-nav-dropdown">
+                    <NavDropdown title={userInfo.name} id="user-nav-dropdown">
                       <LinkContainer to="/profile">
                         <NavDropdown.Item>User Profile</NavDropdown.Item>
                       </LinkContainer>
@@ -110,19 +128,16 @@ function App() {
                         <NavDropdown.Item>Order History</NavDropdown.Item>
                       </LinkContainer>
                       <NavDropdown.Divider />
-                      <Link
-                        className="dropdown-item"
-                        to="#signout"
-                        onClick={signoutHandler}
-                      >
+                      <NavDropdown.Item onClick={signoutHandler}>
                         Sign Out
-                      </Link>
+                      </NavDropdown.Item>
                     </NavDropdown>
                   ) : (
                     <Link className="nav-link" to="/signin">
                       Sign In
                     </Link>
                   )}
+
                   {userInfo && userInfo.isAdmin && (
                     <NavDropdown title="Admin" id="admin-nav-dropdown">
                       <LinkContainer to="/admin/dashboard">
@@ -144,17 +159,15 @@ function App() {
             </Container>
           </Navbar>
         </header>
-        <div
-          className={
-            sidebarIsOpen
-              ? 'active-nav side-navbar d-flex justify-content-between flex-wrap flex-column'
-              : 'side-navbar d-flex justify-content-between flex-wrap flex-column'
-          }
+
+        {/* Sidebar */}
+        <aside
+          className={`side-navbar bg-dark text-white p-3 ${
+            sidebarIsOpen ? 'active' : ''
+          }`}
         >
-          <Nav className="flex-column text-white w-100 p-2">
-            <Nav.Item>
-              <strong>Categories</strong>
-            </Nav.Item>
+          <h6 className="text-uppercase">Categories</h6>
+          <Nav className="flex-column">
             {categories.map((category) => (
               <Nav.Item key={category}>
                 <LinkContainer
@@ -166,24 +179,21 @@ function App() {
               </Nav.Item>
             ))}
           </Nav>
-        </div>
-        <main>
-          <Container className="mt-3">
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-grow-1">
+          <Container className="mt-4">
             <Routes>
+              {/* User Routes */}
+              <Route path="/" element={<HomeScreen />} />
               <Route path="/product/:slug" element={<ProductScreen />} />
               <Route path="/cart" element={<CartScreen />} />
               <Route path="/search" element={<SearchScreen />} />
               <Route path="/signin" element={<SigninScreen />} />
               <Route path="/signup" element={<SignupScreen />} />
-              <Route
-                path="/forget-password"
-                element={<ForgetPasswordScreen />}
-              />
-              <Route
-                path="/reset-password/:token"
-                element={<ResetPasswordScreen />}
-              />
-
+              <Route path="/forget-password" element={<ForgetPasswordScreen />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordScreen />} />
               <Route
                 path="/profile"
                 element={
@@ -200,6 +210,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/shipping" element={<ShippingAddressScreen />} />
+              <Route path="/payment" element={<PaymentMethodScreen />} />
               <Route path="/placeorder" element={<PlaceOrderScreen />} />
               <Route
                 path="/order/:id"
@@ -208,7 +220,7 @@ function App() {
                     <OrderScreen />
                   </ProtectedRoute>
                 }
-              ></Route>
+              />
               <Route
                 path="/orderhistory"
                 element={
@@ -216,12 +228,8 @@ function App() {
                     <OrderHistoryScreen />
                   </ProtectedRoute>
                 }
-              ></Route>
-              <Route
-                path="/shipping"
-                element={<ShippingAddressScreen />}
-              ></Route>
-              <Route path="/payment" element={<PaymentMethodScreen />}></Route>
+              />
+
               {/* Admin Routes */}
               <Route
                 path="/admin/dashboard"
@@ -230,23 +238,7 @@ function App() {
                     <DashboardScreen />
                   </AdminRoute>
                 }
-              ></Route>
-              <Route
-                path="/admin/orders"
-                element={
-                  <AdminRoute>
-                    <OrderListScreen />
-                  </AdminRoute>
-                }
-              ></Route>
-              <Route
-                path="/admin/users"
-                element={
-                  <AdminRoute>
-                    <UserListScreen />
-                  </AdminRoute>
-                }
-              ></Route>
+              />
               <Route
                 path="/admin/products"
                 element={
@@ -254,7 +246,7 @@ function App() {
                     <ProductListScreen />
                   </AdminRoute>
                 }
-              ></Route>
+              />
               <Route
                 path="/admin/product/:id"
                 element={
@@ -262,7 +254,23 @@ function App() {
                     <ProductEditScreen />
                   </AdminRoute>
                 }
-              ></Route>
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <AdminRoute>
+                    <OrderListScreen />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminRoute>
+                    <UserListScreen />
+                  </AdminRoute>
+                }
+              />
               <Route
                 path="/admin/user/:id"
                 element={
@@ -270,16 +278,51 @@ function App() {
                     <UserEditScreen />
                   </AdminRoute>
                 }
-              ></Route>
-
-              <Route path="/" element={<HomeScreen />} />
+              />
             </Routes>
           </Container>
         </main>
-        <footer>
-          <div className="text-center">All rights reserved</div>
+
+        {/* Footer */}
+        <footer className="bg-dark text-white text-center py-3 mt-auto">
+          &copy; 2026 Amazona. All rights reserved.
         </footer>
       </div>
+
+      {/* Additional CSS */}
+      <style>{`
+        .site-container {
+          min-height: 100vh;
+        }
+        .full-box {
+          padding: 0;
+        }
+        .side-navbar {
+          position: fixed;
+          top: 56px;
+          left: -220px;
+          width: 220px;
+          height: 100%;
+          transition: left 0.3s ease-in-out;
+          z-index: 1050;
+        }
+        .side-navbar.active {
+          left: 0;
+        }
+      @media (min-width: 992px) {
+  .side-navbar {
+    top: 56px;
+  }
+}
+        }
+        main {
+          margin-left: 0;
+          transition: margin-left 0.3s ease-in-out;
+        }
+        .sidebar-active main {
+          margin-left: 220px;
+        }
+      `}</style>
     </BrowserRouter>
   );
 }
