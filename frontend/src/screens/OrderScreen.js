@@ -69,62 +69,62 @@ export default function OrderScreen() {
 
   // ---------------- FETCH ORDER ----------------
   useEffect(() => {
-    if (!userInfo) {
-      navigate('/login');
-      return;
-    }
+  if (!userInfo) {
+    navigate('/login');
+    return;
+  }
 
-    const fetchOrder = async () => {
-      try {
-        dispatch({ type: 'FETCH_REQUEST' });
-        const { data } = await axios.get(`/api/orders/${orderId}`, {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
-        });
-        dispatch({ type: 'FETCH_SUCCESS', payload: data });
-      } catch (err) {
-        dispatch({ type: 'FETCH_FAIL', payload: getError(err) });
-      }
+  const fetchOrder = async () => {
+    try {
+      dispatch({ type: 'FETCH_REQUEST' });
+      const { data } = await axios.get(`/api/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+      });
+      dispatch({ type: 'FETCH_SUCCESS', payload: data });
+    } catch (err) {
+      dispatch({ type: 'FETCH_FAIL', payload: getError(err) });
+    }
+  };
+
+  if (
+    !order._id ||
+    successPay ||
+    successDeliver ||
+    order._id !== orderId
+  ) {
+    fetchOrder();
+
+    if (successPay) dispatch({ type: 'PAY_RESET' });
+    if (successDeliver) dispatch({ type: 'DELIVER_RESET' });
+  } else if (!order.isPaid) {
+    const loadPaypalScript = async () => {
+      const { data: clientId } = await axios.get('/api/keys/paypal', {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+      });
+
+      paypalDispatch({
+        type: 'resetOptions',
+        value: {
+          'client-id': clientId,
+          currency: 'USD',
+        },
+      });
+
+      paypalDispatch({ type: 'setLoadingStatus', value: 'pending' });
     };
 
-    if (
-      !order._id ||
-      successPay ||
-      successDeliver ||
-      order._id !== orderId
-    ) {
-      fetchOrder();
-
-      if (successPay) dispatch({ type: 'PAY_RESET' });
-      if (successDeliver) dispatch({ type: 'DELIVER_RESET' });
-    } else if (!order.isPaid) {
-      const loadPaypalScript = async () => {
-        const { data: clientId } = await axios.get('/api/keys/paypal', {
-          headers: { Authorization: `Bearer ${userInfo.token}` },
-        });
-
-        paypalDispatch({
-          type: 'resetOptions',
-          value: {
-            'client-id': clientId,
-            currency: 'USD',
-          },
-        });
-
-        paypalDispatch({ type: 'setLoadingStatus', value: 'pending' });
-      };
-
-      loadPaypalScript();
-    }
-  }, [
-    order._id,
-    orderId,
-    userInfo,
-    navigate,
-    successPay,
-    successDeliver,
-    paypalDispatch,
-  ]);
-
+    loadPaypalScript();
+  }
+}, [
+  order._id,
+  order.isPaid,   // ✅ ADD THIS LINE (important fix)
+  orderId,
+  userInfo,
+  navigate,
+  successPay,
+  successDeliver,
+  paypalDispatch,
+]);
   // ---------------- PAYPAL ----------------
   const createOrder = (data, actions) => {
     return actions.order.create({
