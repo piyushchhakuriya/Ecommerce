@@ -25,7 +25,7 @@ const app = express();
 
 // ✅ CORS should come first
 app.use(cors({
-  origin: "https://calm-taiyaki-97019f.netlify.app/",
+  origin: "https://calm-taiyaki-97019f.netlify.app",
   credentials: true,
 }));
 
