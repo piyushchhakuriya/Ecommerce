@@ -56,20 +56,19 @@ function App() {
   const [categories, setCategories] = useState([]);
 
   // Fetch categories
-useEffect(() => {
+ useEffect(() => {
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get(
-        'https://ecommerce-production-1084.up.railway.app/api/products/categories'
-      );
-      console.log(data); // Browser console me categories aa rahi hain
+      const baseURL = process.env.REACT_APP_API_URL.replace(/\/$/, '');
+      const { data } = await axios.get(`${baseURL}/api/products/categories`);
       setCategories(data);
     } catch (err) {
-      console.error(err); // Agar error hai to yahan dekho
+      toast.error(getError(err));
     }
   };
   fetchCategories();
 }, []);
+
   // Sign out handler
   const signoutHandler = () => {
     ctxDispatch({ type: 'USER_SIGNOUT' });
@@ -78,7 +77,6 @@ useEffect(() => {
     localStorage.removeItem('paymentMethod');
     window.location.href = '/signin';
   };
-  
 
   return (
     <BrowserRouter>
