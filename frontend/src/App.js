@@ -57,6 +57,7 @@ function App() {
 
   // Fetch categories
  useEffect(() => {
+  console.log("Backend URL:", process.env.REACT_APP_API_URL);
   const fetchCategories = async () => {
     try {
       const baseURL = process.env.REACT_APP_API_URL.replace(/\/$/, '');
@@ -67,6 +68,7 @@ function App() {
     }
   };
   fetchCategories();
+   
 }, []);
 
   // Sign out handler
